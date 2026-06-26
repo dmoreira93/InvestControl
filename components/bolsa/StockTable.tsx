@@ -12,7 +12,7 @@ export function StockTable({
   positions, onManualPriceChange,
 }: {
   positions: StockPosition[];
-  onManualPriceChange: (ticker: string, price: number) => void;
+  onManualPriceChange: () => void;
 }) {
   const { upsertQuote } = usePortfolioData();
   const { showToast } = useToast();
@@ -21,18 +21,20 @@ export function StockTable({
     const val = parseFloat(value.replace(',', '.'));
     if (!isNaN(val) && val > 0) {
       await upsertQuote(ticker, { vp_contabil: val });
+      onManualPriceChange();
     } else if (value === '') {
       await upsertQuote(ticker, { vp_contabil: undefined as any });
+      onManualPriceChange();
     }
   }
 
-  function handleRefreshQuote(ticker: string, currentPrice: number) {
+  async function handleRefreshQuote(ticker: string, currentPrice: number) {
     const novoPreco = prompt(`Atualizar cotação manual de ${ticker} (R$):`, fmtNum(currentPrice, 2));
     if (novoPreco !== null) {
       const val = parseFloat(novoPreco.replace(',', '.'));
       if (!isNaN(val) && val > 0) {
-        onManualPriceChange(ticker, val);
-        upsertQuote(ticker, { preco_atual: val });
+        await upsertQuote(ticker, { preco_atual: val });
+        onManualPriceChange();
         showToast(`Cotação de ${ticker} atualizada manualmente.`);
       }
     }

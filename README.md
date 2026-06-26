@@ -48,7 +48,12 @@ Copie `.env.local.example` para `.env.local` e preencha:
 ```
 NEXT_PUBLIC_SUPABASE_URL=https://seu-projeto.supabase.co
 NEXT_PUBLIC_SUPABASE_ANON_KEY=sua-chave-anon-aqui
+BRAPI_TOKEN=seu-token-da-brapi-aqui
 ```
+
+O `BRAPI_TOKEN` é gratuito: crie uma conta em [brapi.dev/dashboard](https://brapi.dev/dashboard) e gere um token na seção "Chaves de API". Ele é usado para buscar cotações reais de ações e FIIs da B3 (ver seção "Cotações reais de Bolsa" abaixo). Diferente das variáveis do Supabase, este token **não leva o prefixo `NEXT_PUBLIC_`** — ele só é lido em código de servidor (Route Handler) e nunca chega ao navegador.
+
+**Importante:** se em algum momento esse token aparecer exposto em algum lugar público (chat, repositório, print), revogue-o no dashboard da brapi.dev e gere um novo.
 
 ## 3. Rodar localmente
 
@@ -102,4 +107,14 @@ O `.gitignore` já está configurado para não subir `node_modules`, `.next`, `.
 - Autenticação via Supabase Auth (e-mail/senha), com confirmação por e-mail e recuperação de senha.
 - Todas as tabelas usam Row Level Security: um usuário nunca acessa dados de outro, mesmo via API direta.
 - A taxa Selic Meta é configurável manualmente (painel de calibração na sidebar) para os cálculos de CDI funcionarem mesmo sem uma API de taxas em tempo real.
-- O preço de ações/FIIs é simulado localmente (caminhada aleatória sutil) por não haver API gratuita de cotações em tempo real da B3; o usuário pode sempre sobrescrever manualmente.
+
+### Cotações reais de Bolsa (brapi.dev)
+
+O preço de ações e FIIs é buscado da [brapi.dev](https://brapi.dev), uma API de dados da B3 com plano gratuito. O fluxo funciona assim:
+
+1. Ao abrir a página **Bolsa**, o app chama `POST /api/quotes/refresh` (Route Handler, roda no servidor).
+2. Esse endpoint busca todos os tickers da sua carteira **em uma única requisição** à brapi.dev e grava o preço retornado na tabela `quotes` do Supabase.
+3. Se a brapi não responder (rate limit, ticker não encontrado, fora do ar), o app mantém o último preço salvo no banco e mostra um aviso discreto na tela — nunca quebra a página.
+4. Não há polling automático: a busca acontece uma vez por carregamento da página, o que é mais que suficiente para quem abre o app algumas vezes por dia e está bem dentro do limite do plano gratuito.
+
+Você também pode sempre sobrescrever manualmente o preço de um ticker na tabela (botão de atualizar ao lado de cada linha), o que é útil para ativos que a brapi não cubra ou em caso de indisponibilidade temporária da API.

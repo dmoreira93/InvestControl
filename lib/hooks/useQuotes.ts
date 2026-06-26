@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 
 /**
  * Busca o preço do Bitcoin em BRL via CoinGecko (API pública, sem chave).
@@ -42,45 +42,39 @@ export function useBitcoinPrice(initialPrice: number | null = null) {
 }
 
 /**
- * Hook que simula uma caminhada aleatória sutil (~±0.15% por tick) nos preços
- * de ações/FIIs, ancorada no preço médio pago, para dar sensação de mercado vivo.
- * Tickers com preço já salvo no banco (quotesByTicker) mantêm esse valor como base.
+ * Hook que busca cotações reais de ações/FIIs (via Route Handler que consulta
+ * a brapi.dev) uma vez ao montar, e expõe um `refresh` manual e o estado de
+ * `lastUpdated`/`loading`/`failed` para a UI informar o usuário.
+ *
+ * Não faz polling automático: o caso de uso é "abrir o app e ver o preço
+ * certo", não tempo real — então uma busca por carregamento de página é
+ * suficiente e evita gastar a cota gratuita da API sem necessidade.
  */
-export function useLiveStockQuotes(
-  tickers: string[],
-  basePrices: Record<string, number>
-) {
-  const [quotes, setQuotes] = useState<Record<string, number>>({});
-  const initializedRef = useRef(false);
+export function useRealStockQuotes() {
+  const [loading, setLoading] = useState(false);
+  const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
+  const [failedTickers, setFailedTickers] = useState<string[]>([]);
 
-  useEffect(() => {
-    if (!initializedRef.current) {
-      const initial: Record<string, number> = {};
-      tickers.forEach((t) => {
-        initial[t] = basePrices[t] ?? 10;
-      });
-      setQuotes(initial);
-      initializedRef.current = true;
+  const refresh = useCallback(async () => {
+    setLoading(true);
+    try {
+      const res = await fetch('/api/quotes/refresh', { method: 'POST' });
+      const json = await res.json();
+      setFailedTickers(json.failed || []);
+      setLastUpdated(new Date());
+      return json;
+    } catch (e) {
+      console.warn('Falha ao atualizar cotações reais.', e);
+      return null;
+    } finally {
+      setLoading(false);
     }
-  }, [tickers, basePrices]);
+  }, []);
 
   useEffect(() => {
-    const interval = setInterval(() => {
-      setQuotes((prev) => {
-        const next: Record<string, number> = { ...prev };
-        Object.keys(next).forEach((ticker) => {
-          const variation = Math.random() * 0.003 - 0.0015; // ±0.15%
-          next[ticker] = Math.max(0.01, next[ticker] * (1 + variation));
-        });
-        return next;
-      });
-    }, 1000);
-    return () => clearInterval(interval);
+    refresh();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const setManualPrice = useCallback((ticker: string, price: number) => {
-    setQuotes((prev) => ({ ...prev, [ticker]: price }));
-  }, []);
-
-  return { quotes, setManualPrice };
+  return { loading, lastUpdated, failedTickers, refresh };
 }

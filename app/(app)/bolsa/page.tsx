@@ -1,50 +1,31 @@
 'use client';
 
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { usePortfolioData } from '@/lib/hooks/usePortfolioData';
-import { useLiveStockQuotes } from '@/lib/hooks/useQuotes';
+import { useRealStockQuotes } from '@/lib/hooks/useQuotes';
 import { getStockPositions } from '@/lib/finance/portfolio';
-import { PulseDot } from '@/components/ui';
-import { IconSort } from '@/components/ui/icons';
+import { Button } from '@/components/ui';
+import { IconSort, IconRefresh, IconAlert } from '@/components/ui/icons';
 import { StockTable } from '@/components/bolsa/StockTable';
 import { MagicNumberPanel } from '@/components/bolsa/MagicNumberPanel';
 import type { TipoAtivo } from '@/types';
 
 export default function BolsaPage() {
-  const { transactions, quotes, loading } = usePortfolioData();
+  const { transactions, quotes, loading, reload } = usePortfolioData();
+  const { loading: refreshing, lastUpdated, failedTickers, refresh } = useRealStockQuotes();
   const [tab, setTab] = useState<'todos' | TipoAtivo>('todos');
   const [sortByDiscount, setSortByDiscount] = useState(false);
 
-  const allTickers = useMemo(() => {
-    const set = new Set<string>();
-    transactions.filter((t) => t.categoria === 'bolsa' && t.ticker).forEach((t) => set.add(t.ticker!));
-    return Array.from(set);
-  }, [transactions]);
+  // Quando o refresh de cotações reais termina, recarrega as quotes do banco
+  // (que o Route Handler já atualizou) para refletir os novos preços na tela.
+  useEffect(() => {
+    if (!refreshing && lastUpdated) {
+      reload();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [refreshing, lastUpdated]);
 
-  const basePrices = useMemo(() => {
-    const map: Record<string, number> = {};
-    allTickers.forEach((ticker) => {
-      const quote = quotes[ticker];
-      if (quote?.preco_atual) map[ticker] = quote.preco_atual;
-    });
-    return map;
-  }, [allTickers, quotes]);
-
-  const { quotes: livePrices, setManualPrice } = useLiveStockQuotes(allTickers, basePrices);
-
-  // Mescla preços simulados em tempo real com os dados salvos (VP, dividendo) do banco
-  const quotesWithLivePrice = useMemo(() => {
-    const merged = { ...quotes };
-    Object.entries(livePrices).forEach(([ticker, price]) => {
-      merged[ticker] = { ...(merged[ticker] || { user_id: '', ticker, vp_contabil: null, dividendo_medio: null, updated_at: '' }), preco_atual: price };
-    });
-    return merged;
-  }, [quotes, livePrices]);
-
-  let positions = useMemo(
-    () => getStockPositions(transactions, quotesWithLivePrice),
-    [transactions, quotesWithLivePrice]
-  );
+  let positions = useMemo(() => getStockPositions(transactions, quotes), [transactions, quotes]);
 
   if (tab !== 'todos') {
     positions = positions.filter((p) => p.tipo === tab);
@@ -58,9 +39,15 @@ export default function BolsaPage() {
   }
 
   const fiiList = useMemo(
-    () => getStockPositions(transactions, quotesWithLivePrice).filter((p) => p.tipo === 'fii'),
-    [transactions, quotesWithLivePrice]
+    () => getStockPositions(transactions, quotes).filter((p) => p.tipo === 'fii'),
+    [transactions, quotes]
   );
+
+  function handleManualPriceChange() {
+    // O preço manual já é salvo direto no Supabase via upsertQuote (chamado
+    // dentro do StockTable); aqui só recarregamos para refletir na tela.
+    reload();
+  }
 
   if (loading) return <div className="animate-pulse h-96 bg-surface-2 rounded-[20px]" />;
 
@@ -69,12 +56,27 @@ export default function BolsaPage() {
       <div className="flex items-center justify-between gap-4 mb-5 flex-wrap">
         <div>
           <h1 className="font-display text-[26px] font-bold">Bolsa de Valores</h1>
-          <p className="text-text-3 text-[13.5px] mt-0.5">Ações e Fundos Imobiliários — preços atualizados em simulação contínua</p>
+          <p className="text-text-3 text-[13.5px] mt-0.5">Ações e Fundos Imobiliários — cotações reais via brapi.dev</p>
         </div>
-        <div className="flex items-center gap-1.5 text-[12px] text-text-3">
-          <PulseDot /> Mercado simulado ao vivo
+        <div className="flex items-center gap-3 text-[12px] text-text-3">
+          {lastUpdated && !refreshing && (
+            <span>Atualizado às {lastUpdated.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}</span>
+          )}
+          <Button variant="ghost" small onClick={refresh} disabled={refreshing}>
+            <IconRefresh className={`w-3.5 h-3.5 ${refreshing ? 'animate-spin' : ''}`} />
+            {refreshing ? 'Atualizando...' : 'Atualizar cotações'}
+          </Button>
         </div>
       </div>
+
+      {failedTickers.length > 0 && (
+        <div className="flex gap-2.5 p-3.5 px-4 rounded-[12px] border bg-gold/[0.08] border-gold/30 text-[#FFE2A8] text-[12.5px] leading-relaxed mb-4">
+          <IconAlert className="text-gold flex-shrink-0 w-4 h-4 mt-0.5" />
+          <div>
+            Não foi possível atualizar a cotação de <strong>{failedTickers.join(', ')}</strong> agora. Mantendo o último preço salvo — você pode atualizar manualmente na tabela se precisar.
+          </div>
+        </div>
+      )}
 
       <div className="flex items-center justify-between gap-3 mb-4.5 flex-wrap">
         <div className="flex gap-1 bg-surface-2 p-1 rounded-[11px] border border-border-soft w-fit">
@@ -97,7 +99,7 @@ export default function BolsaPage() {
       </div>
 
       <div className="mb-6">
-        <StockTable positions={positions} onManualPriceChange={setManualPrice} />
+        <StockTable positions={positions} onManualPriceChange={handleManualPriceChange} />
       </div>
 
       {fiiList.length > 0 && <MagicNumberPanel fiiList={fiiList} />}
