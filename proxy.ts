@@ -3,11 +3,17 @@ import { updateSession } from '@/lib/supabase/middleware';
 
 const AUTH_ROUTES = ['/login', '/cadastro', '/recuperar-senha', '/atualizar-senha'];
 
+function isAuthRoute(path: string): boolean {
+  // Usa correspondência exata (ou com barra final) em vez de startsWith,
+  // porque "/cadastro" como prefixo capturava incorretamente a rota
+  // "/cadastro-transacao" (que é uma página protegida, não de autenticação).
+  return AUTH_ROUTES.some((route) => path === route || path.startsWith(`${route}/`));
+}
+
 export async function proxy(request: NextRequest) {
   const { response, user } = await updateSession(request);
   const path = request.nextUrl.pathname;
 
-  const isAuthRoute = AUTH_ROUTES.some((route) => path.startsWith(route));
   const isPublicAsset = path.startsWith('/_next') || path.startsWith('/api') || path === '/favicon.ico';
 
   if (isPublicAsset) {
@@ -15,14 +21,14 @@ export async function proxy(request: NextRequest) {
   }
 
   // Usuário não logado tentando acessar área protegida -> manda para login
-  if (!user && !isAuthRoute && path !== '/') {
+  if (!user && !isAuthRoute(path) && path !== '/') {
     const redirectUrl = new URL('/login', request.url);
     redirectUrl.searchParams.set('redirectTo', path);
     return NextResponse.redirect(redirectUrl);
   }
 
   // Usuário já logado tentando acessar páginas de auth -> manda para o dashboard
-  if (user && isAuthRoute) {
+  if (user && isAuthRoute(path)) {
     return NextResponse.redirect(new URL('/dashboard', request.url));
   }
 
