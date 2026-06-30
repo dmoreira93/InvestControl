@@ -10,13 +10,15 @@ import { useConfig } from '@/lib/hooks/useConfig';
 import { Button, Input } from '@/components/ui';
 import {
   IconDashboard, IconAdd, IconStocks, IconFixedIncome, IconTreasury,
-  IconFunds, IconCrypto, IconWallet, IconGear, IconLogout,
+  IconFunds, IconCrypto, IconWallet, IconGear, IconLogout, IconTrendUp, IconMagic,
 } from '@/components/ui/icons';
 
 const NAV_ITEMS = [
   { href: '/dashboard', label: 'Dashboard Geral', Icon: IconDashboard },
   { href: '/cadastro-transacao', label: 'Cadastrar Transação', Icon: IconAdd },
   { href: '/bolsa', label: 'Bolsa de Valores', Icon: IconStocks },
+  { href: '/fundamentos', label: 'Análise Fundamentalista', Icon: IconTrendUp },
+  { href: '/rendimentos', label: 'Rendimentos por Ativo', Icon: IconMagic },
   { href: '/renda-fixa', label: 'Renda Fixa', Icon: IconFixedIncome },
   { href: '/tesouro', label: 'Tesouro Direto', Icon: IconTreasury },
   { href: '/fundos', label: 'Fundos de Investimento', Icon: IconFunds },

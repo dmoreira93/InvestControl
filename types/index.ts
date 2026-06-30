@@ -35,6 +35,7 @@ export interface Transaction {
   cotas?: number | null;
   valor_cota_compra?: number | null;
   valor_cota_atual?: number | null;
+  sem_prazo_resgate?: boolean;
 
   // Cripto
   ativo?: string | null;
@@ -106,6 +107,7 @@ export interface FundPosition {
   valorAtualizado: number;
   lucro: number;
   lucroPct: number;
+  semPrazoResgate: boolean;
 }
 
 export interface CryptoPosition {
@@ -116,6 +118,12 @@ export interface CryptoPosition {
   valorAtualizado: number;
   lucro: number;
   lucroPct: number;
+}
+
+export interface PatrimonyHistoryPoint {
+  monthKey: string;
+  label: string;
+  custoAcumulado: number;
 }
 
 export interface PortfolioSummary {
@@ -211,3 +219,91 @@ export interface BudgetLimit {
 }
 
 export type NewBudgetLimit = Omit<BudgetLimit, 'id' | 'user_id' | 'created_at'>;
+
+// =============================================================================
+// Tipos de domínio — Rendimentos por Ativo
+// =============================================================================
+
+export type TipoRendimento = 'dividendo' | 'jcp' | 'rendimento_fii' | 'cupom' | 'amortizacao' | 'outro';
+
+export interface AssetIncome {
+  id: string;
+  user_id: string;
+  categoria: Categoria;
+  identificador: string;     // ticker (bolsa/cripto) ou nome_produto/nome_fundo (renda fixa/tesouro/fundos)
+  tipo_rendimento: TipoRendimento;
+  valor: number;
+  data: string;
+  observacao: string | null;
+  created_at: string;
+}
+
+export type NewAssetIncome = Omit<AssetIncome, 'id' | 'user_id' | 'created_at'>;
+
+// =============================================================================
+// Tipos de domínio — Análise Fundamentalista
+// =============================================================================
+
+export interface FundamentalsCache {
+  user_id: string;
+  ticker: string;
+  pl: number | null;
+  pvp: number | null;
+  roe: number | null;
+  dividend_yield: number | null;
+  ev_ebitda: number | null;
+  enterprise_value: number | null;
+  cash: number | null;
+  market_cap: number | null;
+  fonte: 'api' | 'manual';
+  updated_at: string;
+}
+
+export type NewFundamentalsCache = Omit<FundamentalsCache, 'updated_at'>;
+
+/** Valor de empresa sobre caixa, derivado: indica quantas vezes o caixa "cabe" no EV. */
+export function calcEvSobreCaixa(enterpriseValue: number | null, cash: number | null): number | null {
+  if (!enterpriseValue || !cash || cash <= 0) return null;
+  return enterpriseValue / cash;
+}
+
+// =============================================================================
+// Tipos de domínio — Política de Provento
+// =============================================================================
+
+export type Periodicidade = 'mensal' | 'bimestral' | 'trimestral' | 'semestral' | 'anual' | 'irregular';
+
+export interface DividendPolicy {
+  user_id: string;
+  ticker: string;
+  periodicidade: Periodicidade;
+  dia_pagamento: number | null;
+  valor_por_cota: number;
+  data_inicio: string;
+  ativo: boolean;
+  observacao: string | null;
+  updated_at: string;
+}
+
+export type NewDividendPolicy = Omit<DividendPolicy, 'updated_at'>;
+
+/** Quantos meses se passam entre um pagamento e o próximo, por periodicidade. */
+export const PERIODICIDADE_INTERVALO_MESES: Record<Periodicidade, number> = {
+  mensal: 1,
+  bimestral: 2,
+  trimestral: 3,
+  semestral: 6,
+  anual: 12,
+  irregular: 1, // tratado mês a mês como se fosse mensal (melhor estimativa possível)
+};
+
+export const PERIODICIDADE_LABELS: Record<Periodicidade, string> = {
+  mensal: 'Mensal',
+  bimestral: 'Bimestral',
+  trimestral: 'Trimestral',
+  semestral: 'Semestral',
+  anual: 'Anual',
+  irregular: 'Irregular / Variável',
+};
+
+

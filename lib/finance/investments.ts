@@ -114,6 +114,18 @@ export function calcNumeroMagico(precoAtual: number, dividendoMedioPorCota: numb
   return Math.ceil(precoAtual / dividendoMedioPorCota);
 }
 
+/**
+ * Converte o valor por cota de uma Política de Provento (que pode ser mensal,
+ * trimestral, etc.) para o equivalente mensal, usado tanto no Número Mágico
+ * quanto na trava de sanidade de yield. Ex: R$3,00 trimestral -> R$1,00/mês equivalente.
+ */
+export function valorPorCotaEquivalenteMensal(valorPorCota: number, periodicidade: import('@/types').Periodicidade): number {
+  const intervalos: Record<string, number> = {
+    mensal: 1, bimestral: 2, trimestral: 3, semestral: 6, anual: 12, irregular: 1,
+  };
+  return valorPorCota / (intervalos[periodicidade] ?? 1);
+}
+
 /** Renda mensal estimada de uma posição de renda fixa/tesouro pós-fixada ao CDI. */
 export function estimateMonthlyIncomeCDI(
   valorInvestido: number,

@@ -3,7 +3,8 @@
 import Link from 'next/link';
 import { usePortfolioData } from '@/lib/hooks/usePortfolioData';
 import { useConfig } from '@/lib/hooks/useConfig';
-import { getPortfolioSummary } from '@/lib/finance/portfolio';
+import { useDividendPolicyData } from '@/lib/hooks/useDividendPolicyData';
+import { getPortfolioSummary, getPatrimonyHistory } from '@/lib/finance/portfolio';
 import { useBitcoinPrice } from '@/lib/hooks/useQuotes';
 import { fmtBRL, fmtPct } from '@/lib/finance/utils';
 import { StatCard, EmptyState, Button } from '@/components/ui';
@@ -15,17 +16,20 @@ import { useMemo } from 'react';
 export default function DashboardPage() {
   const { transactions, quotes, loading } = usePortfolioData();
   const { config } = useConfig();
+  const { policies, loading: loadingPolicies } = useDividendPolicyData();
   const { price: btcPrice } = useBitcoinPrice();
 
   const summary = useMemo(
-    () => getPortfolioSummary(transactions, config, quotes, btcPrice),
-    [transactions, config, quotes, btcPrice]
+    () => getPortfolioSummary(transactions, config, quotes, btcPrice, policies),
+    [transactions, config, quotes, btcPrice, policies]
   );
+
+  const history = useMemo(() => getPatrimonyHistory(transactions), [transactions]);
 
   const hasData = transactions.length > 0;
   const lucroUp = summary.lucroTotal >= 0;
 
-  if (loading) {
+  if (loading || loadingPolicies) {
     return <PageSkeleton />;
   }
 
@@ -59,7 +63,7 @@ export default function DashboardPage() {
           eyebrow="Renda Passiva Estimada"
           value={fmtBRL(summary.rendaPassiva)}
           valueColor="text-gold"
-          delta="Projeção para o próximo mês"
+          delta="Projeção real para o próximo mês"
           glowColor="bg-gold"
         />
         <StatCard
@@ -96,11 +100,21 @@ export default function DashboardPage() {
           </div>
           <div className="bg-surface border border-border-soft rounded-[20px] p-[22px]">
             <div className="mb-4">
-              <h2 className="font-display text-[17px] font-semibold">Crescimento Patrimonial</h2>
-              <p className="text-[12.5px] text-text-3 mt-0.5">Evolução simulada do patrimônio nos últimos 6 meses</p>
+              <h2 className="font-display text-[17px] font-semibold">Evolução do Capital Investido</h2>
+              <p className="text-[12.5px] text-text-3 mt-0.5">
+                {history.length > 1
+                  ? 'Total investido (custo histórico) acumulado mês a mês, a partir da sua primeira transação'
+                  : 'Cadastre transações em mais de um mês para ver a evolução ao longo do tempo'}
+              </p>
             </div>
             <div className="h-[280px] relative">
-              <GrowthChart patrimonioTotal={summary.patrimonioTotal} />
+              {history.length > 1 ? (
+                <GrowthChart history={history} />
+              ) : (
+                <div className="h-full flex items-center justify-center text-text-3 text-[13px] text-center px-6">
+                  Ainda não há histórico suficiente. Esse gráfico mostra a evolução real do quanto você investiu mês a mês — volte aqui no próximo mês para começar a ver a curva.
+                </div>
+              )}
             </div>
           </div>
         </div>

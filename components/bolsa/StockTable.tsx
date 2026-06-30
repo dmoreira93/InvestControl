@@ -1,8 +1,9 @@
 'use client';
 
-import { useState } from 'react';
-import { fmtBRL, fmtNum, fmtPct } from '@/lib/finance/utils';
+import { fmtBRL, fmtNum, fmtPct, fmtDateBR } from '@/lib/finance/utils';
 import { usePortfolioData } from '@/lib/hooks/usePortfolioData';
+import { useDividendPolicyData } from '@/lib/hooks/useDividendPolicyData';
+import { getNextPaymentDate } from '@/lib/finance/dividend-policy';
 import { useToast } from '@/components/ui/toast';
 import { Badge, Input, EmptyState } from '@/components/ui';
 import { IconRefresh, IconEmpty } from '@/components/ui/icons';
@@ -15,6 +16,7 @@ export function StockTable({
   onManualPriceChange: () => void;
 }) {
   const { upsertQuote } = usePortfolioData();
+  const { policies } = useDividendPolicyData();
   const { showToast } = useToast();
 
   async function handleVpChange(ticker: string, value: string) {
@@ -44,21 +46,24 @@ export function StockTable({
     <div className="bg-surface border border-border-soft rounded-[20px] p-[22px]">
       <div className="text-[11px] text-text-3 mb-2 sm:hidden">← Arraste para o lado para ver mais colunas →</div>
       <div className="overflow-x-auto rounded-[14px]">
-        <div className="min-w-[900px]">
+        <div className="min-w-[1000px]">
           <table>
             <thead>
               <tr>
                 <th>Ticker</th><th>Tipo</th><th>Qtd</th><th>Preço Médio</th><th>Preço Atual</th>
-                <th>Valor Atualizado</th><th>Lucro/Prejuízo</th><th>VPA / VP Fundo</th><th>P/VP</th><th>Status</th><th>Ações</th>
+                <th>Valor Atualizado</th><th>Lucro/Prejuízo</th><th>VPA / VP Fundo</th><th>P/VP</th>
+                <th>Próximo Provento</th><th>Status</th><th>Ações</th>
               </tr>
             </thead>
             <tbody>
               {positions.length === 0 ? (
-                <tr><td colSpan={11}><EmptyState icon={<IconEmpty className="w-10 h-10" />} title="Nenhuma posição cadastrada" description="Cadastre uma compra de ação ou FII para começar." /></td></tr>
+                <tr><td colSpan={12}><EmptyState icon={<IconEmpty className="w-10 h-10" />} title="Nenhuma posição cadastrada" description="Cadastre uma compra de ação ou FII para começar." /></td></tr>
               ) : positions.map((p) => {
                 const lucroClass = p.lucro >= 0 ? 'text-neon' : 'text-red';
                 const lucroSign = p.lucro >= 0 ? '+' : '';
                 const tipoLabel = p.tipo === 'fii' ? 'FII' : 'Ação';
+                const policy = policies[p.ticker];
+                const proximoPagamento = policy ? getNextPaymentDate(policy) : null;
 
                 return (
                   <tr key={p.ticker}>
@@ -84,6 +89,13 @@ export function StockTable({
                       )}
                     </td>
                     <td className="font-mono">{p.tipo === 'fii' && p.pvp !== null ? fmtNum(p.pvp, 2) : '—'}</td>
+                    <td>
+                      {proximoPagamento ? (
+                        <span className="font-mono text-[12.5px] text-gold">{fmtDateBR(proximoPagamento)}</span>
+                      ) : (
+                        <span className="text-text-3 text-[12px]">—</span>
+                      )}
+                    </td>
                     <td>
                       <div className="flex gap-1.5 flex-wrap">
                         {p.tipo === 'fii' && p.isDesconto && <Badge color="green">Desconto</Badge>}

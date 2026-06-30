@@ -64,6 +64,7 @@ export function CadastroForm() {
       const cotas = parseFloat(get('cotas'));
       const valorCotaCompra = parseFloat(get('valorCotaCompra'));
       const valorCotaAtual = parseFloat(get('valorCotaAtual'));
+      const semPrazoResgate = data.get('semPrazoResgate') === 'on';
       if (!get('nomeFundo') || isNaN(cotas) || isNaN(valorCotaCompra) || isNaN(valorCotaAtual)) {
         showToast('Preencha todos os campos corretamente.', 'red');
         return;
@@ -71,7 +72,7 @@ export function CadastroForm() {
       tx = {
         categoria, nome_fundo: get('nomeFundo'), tipo_fundo: get('tipoFundo'),
         cotas, valor_cota_compra: valorCotaCompra, valor_cota_atual: valorCotaAtual,
-        data_aplicacao: get('dataAplicacao'),
+        data_aplicacao: get('dataAplicacao'), sem_prazo_resgate: semPrazoResgate,
       };
     } else {
       const fracao = parseFloat(get('fracao'));
@@ -247,7 +248,7 @@ function DynamicFields({ categoria }: { categoria: Categoria }) {
           <Select name="indexador" defaultValue="CDI">
             <option value="CDI">% do CDI (pós-fixado)</option>
             <option value="PREFIXADO">Prefixado (taxa fixa a.a.)</option>
-            {isTesouro && <option value="IPCA">IPCA+ (taxa fixa a.a. sobre IPCA)</option>}
+            <option value="IPCA">IPCA+ (taxa fixa a.a. sobre IPCA)</option>
           </Select>
         </InputGroup>
         <InputGroup>
@@ -296,6 +297,12 @@ function DynamicFields({ categoria }: { categoria: Categoria }) {
           <Label>Data da aplicação</Label>
           <Input type="date" name="dataAplicacao" defaultValue={today} max={today} required />
         </InputGroup>
+        <div className="sm:col-span-2">
+          <label className="flex items-center gap-2 text-[13px] text-text-2">
+            <input type="checkbox" name="semPrazoResgate" className="accent-purple-bright w-4 h-4" />
+            Este fundo não tem prazo de resgate definido (fundo aberto perpétuo)
+          </label>
+        </div>
       </>
     );
   }

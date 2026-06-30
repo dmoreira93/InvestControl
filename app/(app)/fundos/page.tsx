@@ -35,12 +35,12 @@ export default function FundosPage() {
             <thead>
               <tr>
                 <th>Fundo</th><th>Tipo</th><th>Cotas</th><th>Valor Cota Atual</th>
-                <th>Custo Total</th><th>Valor Atualizado</th><th>Lucro/Prejuízo</th>
+                <th>Custo Total</th><th>Valor Atualizado</th><th>Lucro/Prejuízo</th><th>Resgate</th>
               </tr>
             </thead>
             <tbody>
               {positions.length === 0 ? (
-                <tr><td colSpan={7}><EmptyState icon={<IconEmpty className="w-10 h-10" />} title="Nenhum fundo cadastrado" /></td></tr>
+                <tr><td colSpan={8}><EmptyState icon={<IconEmpty className="w-10 h-10" />} title="Nenhum fundo cadastrado" /></td></tr>
               ) : positions.map((p) => {
                 const lucroClass = p.lucro >= 0 ? 'text-neon' : 'text-red';
                 const lucroSign = p.lucro >= 0 ? '+' : '';
@@ -53,6 +53,7 @@ export default function FundosPage() {
                     <td className="font-mono">{fmtBRL(p.custoTotal)}</td>
                     <td className="font-mono">{fmtBRL(p.valorAtualizado)}</td>
                     <td className={`font-mono ${lucroClass}`}>{lucroSign}{fmtBRL(p.lucro)} ({lucroSign}{fmtPct(p.lucroPct)})</td>
+                    <td>{p.semPrazoResgate ? <Badge color="gold">Sem prazo</Badge> : <Badge color="gray">Com prazo</Badge>}</td>
                   </tr>
                 );
               })}

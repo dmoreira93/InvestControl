@@ -7,7 +7,7 @@ import {
 } from 'chart.js';
 import { Doughnut, Line } from 'react-chartjs-2';
 import { fmtBRL } from '@/lib/finance/utils';
-import type { PortfolioSummary } from '@/types';
+import type { PortfolioSummary, PatrimonyHistoryPoint } from '@/types';
 
 ChartJS.register(ArcElement, LineElement, PointElement, CategoryScale, LinearScale, Tooltip, Legend, Filler);
 
@@ -36,25 +36,16 @@ export function AllocationChart({ totals }: { totals: PortfolioSummary['totals']
   return <Doughnut data={data} options={options} />;
 }
 
-export function GrowthChart({ patrimonioTotal }: { patrimonioTotal: number }) {
-  const { months, values } = useMemo(() => {
-    const monthsArr: string[] = [];
-    const valuesArr: number[] = [];
-    const now = new Date();
-    for (let i = 5; i >= 0; i--) {
-      const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
-      monthsArr.push(d.toLocaleDateString('pt-BR', { month: 'short' }).replace('.', ''));
-      const factor = 0.78 + (5 - i) * 0.044 + (Math.random() * 0.02 - 0.01);
-      valuesArr.push(Math.max(0, patrimonioTotal * factor));
-    }
-    valuesArr[valuesArr.length - 1] = patrimonioTotal;
-    return { months: monthsArr, values: valuesArr };
-  }, [patrimonioTotal]);
+export function GrowthChart({ history }: { history: PatrimonyHistoryPoint[] }) {
+  const { months, values } = useMemo(() => ({
+    months: history.map((p) => p.label),
+    values: history.map((p) => p.custoAcumulado),
+  }), [history]);
 
   const data = {
     labels: months,
     datasets: [{
-      label: 'Patrimônio',
+      label: 'Custo acumulado investido',
       data: values,
       borderColor: '#00FFA3',
       backgroundColor: (ctx: any) => {
